@@ -17,7 +17,22 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
-let sheetId = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
+let sheetId = undefined;
+let sheetNames = undefined;
+let sheetName = undefined;
+let headers = [];
+let lastCol = undefined;
+
+if (window.location.search) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('sheetId'))
+        sheetId = params.get('sheetId');
+    else
+        // prompt user to enter sheetId
+        sheetId = prompt('Enter sheetId');
+    if (params.has('sheetName'))
+        sheetName = params.get('sheetName');
+}
 
 document.getElementById('authorize_button').style.visibility = 'hidden';
 document.getElementById('signout_button').style.visibility = 'hidden';
@@ -72,10 +87,17 @@ function handleAuthClick() {
         if (resp.error !== undefined) {
             throw (resp);
         }
+        localStorage.setItem('access_token', resp.access_token);
         document.getElementById('signout_button').style.visibility = 'visible';
         document.getElementById('authorize_button').innerText = 'Refresh';
-        await listMajors();
+        await fetchRows();
     };
+
+    if (localStorage.getItem('access_token')) {
+        tokenClient.requestAccessToken({ prompt: '' });
+    } else {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
 
     if (gapi.client.getToken() === null) {
         // Prompt the user to select a Google Account and ask for consent to share their data
@@ -101,10 +123,53 @@ function handleSignoutClick() {
     }
 }
 
+/** 
+ * Function to update URL parameters without reloading
+*/
+function updateURLParameter(param, value) {
+    const url = new URL(window.location);
+    url.searchParams.set(param, value);
+    window.history.pushState({}, '', url);
+}
+
+/**
+ * fetch list of sheet names
+ */
+async function fetchSheetNames() {
+    let response;
+    try {
+        response = await gapi.client.sheets.spreadsheets.get({
+            spreadsheetId: sheetId,
+        });
+    } catch (err) {
+        document.getElementById('content').innerText = err.message;
+        return;
+    }
+    sheetNames = response.result.sheets;
+    if (!sheetNames || sheetNames.length == 0) {
+        document.getElementById('content').innerText = 'No sheets found.';
+        return;
+    }
+    // clear the .sheet-list
+    $('.sheet-list').empty();
+    // add to the .sheet-list using jquery
+    sheetNames.forEach(sheet => {
+        $('.sheet-list').append(`<li><a>${sheet.properties.title}</a></li>`);
+    });
+    // add click event to each sheet
+    $('.sheet-list li').click(function () {
+        sheetName = this.innerText;
+        updateURLParameter('sheetName', sheetName);
+        Headers(sheetName);
+        fetchRows();
+    });
+}
+
+
 /**
  * returns list of headers of specific sheet
  */
-async function getHeaders(sheetName) {
+async function fetchSheetHeaders(sheetName) {
     let response;
     try {
         response = await gapi.client.sheets.spreadsheets.values.get({
@@ -120,7 +185,95 @@ async function getHeaders(sheetName) {
         document.getElementById('content').innerText = 'No values found.';
         return;
     }
-    return range.values[0];
+    headers = range.values[0];
+    // set lastCol to the last column index letter (A, B, C, ...)
+    lastCol = String.fromCharCode(65 + headers.length - 1);
+}
+
+/**
+ * Print the names and majors of students in a sample spreadsheet:
+ * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
+ */
+async function fetchRows() {
+    if (!sheetId) {
+        sheetId = prompt('Enter sheetId');
+    }
+    if (!sheetName) {
+        if (!sheetNames) {
+            await fetchSheetNames();
+        }
+        sheetName = sheetNames[0].properties.title;
+    }
+    await fetchSheetHeaders(sheetName);
+    let response;
+    try {
+        response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!A2:${lastCol}`
+        });
+    } catch (err) {
+        document.getElementById('content').innerText = err.message;
+        return;
+    }
+    const range = response.result;
+    if (!range || !range.values || range.values.length == 0) {
+        document.getElementById('content').innerText = 'No values found.';
+        return;
+    }
+    // add cards to .card-list using jquery
+    $('.card-list').empty();
+    range.values.forEach((row, i) => {
+        let card = $('<li class="card"></li>');
+        row.forEach((cell, j) => {
+            card.append(
+                `<div class="form-floating mb-3">
+                    <input type="text" readonly class="form-control-plaintext" id="card_${i}_${j}" value="${cell}">
+                    <label for="card_${i}_${j}">${headers[j]}</label>
+                </div>`);
+        });
+        $('.card-list').append(card);
+        // on click - call editRow
+        card.click(async () => await editRow(i + 2));
+    });
+}
+
+/**
+ * open specific row for editing in .card-edit
+ */
+async function editRow(rowNum) {
+    let response;
+    try {
+        response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: sheetId,
+            range: `${sheetName}!A${rowNum}:${lastCol}${rowNum}`
+        });
+    } catch (err) {
+        document.getElementById('content').innerText = err.message;
+        return;
+    }
+    const range = response.result;
+    if (!range || !range.values || range.values.length == 0) {
+        document.getElementById('content').innerText = 'No values found.';
+        return;
+    }
+    let row = range.values[0];
+    // add cells to .card-edit using jquery
+    $('.card-edit-list').empty();
+    row.forEach((cell, j) => {
+        $('.card-edit-list').append(
+            `<div class="form-floating mb-3">
+                <input type="text" class="form-control" id="edit_${rowNum}_${j}" value="${cell}">
+                <label for="edit_${rowNum}_${j}">${headers[j]}</label>
+            </div>`);
+    });
+}
+
+function saveCard() {
+
+}
+
+function cancelEdit() {
+
 }
 
 /**
@@ -142,32 +295,4 @@ async function appendRow(sheetName, row) {
         return;
     }
     document.getElementById('content').innerText = 'Appended row.';
-}
-
-/**
- * Print the names and majors of students in a sample spreadsheet:
- * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
- */
-async function listMajors() {
-    let response;
-    try {
-        // Fetch first 10 files
-        response = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: 'Class Data!A2:E',
-        });
-    } catch (err) {
-        document.getElementById('content').innerText = err.message;
-        return;
-    }
-    const range = response.result;
-    if (!range || !range.values || range.values.length == 0) {
-        document.getElementById('content').innerText = 'No values found.';
-        return;
-    }
-    // Flatten to string to display
-    const output = range.values.reduce(
-        (str, row) => `${str}${row[0]}, ${row[4]}\n`,
-        'Name, Major:\n');
-    document.getElementById('content').innerText = output;
 }

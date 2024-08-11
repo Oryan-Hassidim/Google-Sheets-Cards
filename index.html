@@ -11,14 +11,32 @@
 </head>
 
 <body>
-    <p>Sheets API Quickstart</p>
+    <div class="my-container">
+        <div class="header">
+            <h1>Google Sheets Cards</h1>
+            <button id="authorize_button" class="btn btn-primary" type="button" onclick="handleAuthClick()">Authorize</button>
+            <button id="signout_button" class="btn" type="button" onclick="handleSignoutClick()">Sign Out</button>
+            <pre id="content" style="white-space: pre-wrap;"></pre>
+        </div>
+        <div class="sheet-selector">
+            <button type="button" class="btn btn-primary">&#9776;</button>
+            <ul class="sheet-list">
+            </ul>
+        </div>
+        <div class="cards">
+            <input type="text" class="form-control" id="search" placeholder="Search...">
+            <ol class="card-list">
+            </ol>
+        </div>
+        <div class="card-edit">
+            <div class="card-edit-list">
+            </div>
+            <button type="button" class="btn btn-primary" onclick="saveCard()">Save</button>
+            <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+        </div>
+        
 
-    <!--Add buttons to initiate auth sequence and sign out-->
-    <button id="authorize_button" type="button" onclick="handleAuthClick()">Authorize</button>
-    <button id="signout_button" type="button" onclick="handleSignoutClick()">Sign Out</button>
-
-    <pre id="content" style="white-space: pre-wrap;"></pre>
-
+    </div>
     <script src="https://code.jquery.com/jquery-3.7.1.slim.js"
         integrity="sha256-UgvvN8vBkgO0luPSUl2s8TIlOSYRoGFAX4jlCIm9Adc=" crossorigin="anonymous"></script>
     <script src="index.js"></script>
