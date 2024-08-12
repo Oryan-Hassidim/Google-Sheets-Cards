@@ -12,16 +12,19 @@ const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
 
 // Authorization scopes required by the API; multiple scopes can be
 // included, separated by spaces.
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
+let loggedIn = false;
 let sheetId = undefined;
 let sheetNames = undefined;
 let sheetName = undefined;
 let headers = [];
+rows = [];
 let lastCol = undefined;
+let editRowNum = undefined;
 
 if (window.location.search) {
     const params = new URLSearchParams(window.location.search);
@@ -36,6 +39,11 @@ if (window.location.search) {
 
 document.getElementById('authorize_button').style.visibility = 'hidden';
 document.getElementById('signout_button').style.visibility = 'hidden';
+
+$(document).ready(function () {
+    gapi.load('client', initializeGapiClient);
+    gisLoaded();
+});
 
 /**
  * Callback after api.js is loaded.
@@ -93,20 +101,20 @@ function handleAuthClick() {
         await fetchRows();
     };
 
-    if (localStorage.getItem('access_token')) {
+    if (localStorage.getItem('access_token') && gapi.client.getToken() !== null) {
         tokenClient.requestAccessToken({ prompt: '' });
     } else {
         tokenClient.requestAccessToken({ prompt: 'consent' });
     }
 
-    if (gapi.client.getToken() === null) {
-        // Prompt the user to select a Google Account and ask for consent to share their data
-        // when establishing a new session.
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-        // Skip display of account chooser and consent dialog for an existing session.
-        tokenClient.requestAccessToken({ prompt: '' });
-    }
+    // if (gapi.client.getToken() === null) {
+    //     // Prompt the user to select a Google Account and ask for consent to share their data
+    //     // when establishing a new session.
+    //     tokenClient.requestAccessToken({ prompt: 'consent' });
+    // } else {
+    //     // Skip display of account chooser and consent dialog for an existing session.
+    //     tokenClient.requestAccessToken({ prompt: '' });
+    // }
 }
 
 /**
@@ -121,6 +129,8 @@ function handleSignoutClick() {
         document.getElementById('authorize_button').innerText = 'Authorize';
         document.getElementById('signout_button').style.visibility = 'hidden';
     }
+    $('.my-container').removeClass('cards');
+    $('.my-container').removeClass('edit');
 }
 
 /** 
@@ -145,7 +155,7 @@ async function fetchSheetNames() {
         document.getElementById('content').innerText = err.message;
         return;
     }
-    sheetNames = response.result.sheets;
+    sheetNames = response.result.sheets.map(sheet => sheet.properties.title);
     if (!sheetNames || sheetNames.length == 0) {
         document.getElementById('content').innerText = 'No sheets found.';
         return;
@@ -153,15 +163,14 @@ async function fetchSheetNames() {
     // clear the .sheet-list
     $('.sheet-list').empty();
     // add to the .sheet-list using jquery
-    sheetNames.forEach(sheet => {
-        $('.sheet-list').append(`<li><a>${sheet.properties.title}</a></li>`);
+    sheetNames.forEach(name => {
+        $('.sheet-list').append(`<li><a>${name}</a></li>`);
     });
     // add click event to each sheet
-    $('.sheet-list li').click(function () {
+    $('.sheet-list li').click(async function () {
         sheetName = this.innerText;
         updateURLParameter('sheetName', sheetName);
-        Headers(sheetName);
-        fetchRows();
+        await fetchRows();
     });
 }
 
@@ -169,12 +178,12 @@ async function fetchSheetNames() {
 /**
  * returns list of headers of specific sheet
  */
-async function fetchSheetHeaders(sheetName) {
+async function fetchSheetHeaders() {
     let response;
     try {
         response = await gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: sheetId,
-            range: `${sheetName}!1:1`,
+            range: `'${sheetName}'!1:1`,
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
@@ -195,21 +204,23 @@ async function fetchSheetHeaders(sheetName) {
  * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
  */
 async function fetchRows() {
-    if (!sheetId) {
+    if (sheetId === undefined) {
         sheetId = prompt('Enter sheetId');
+        updateURLParameter('sheetId', sheetId);
     }
-    if (!sheetName) {
-        if (!sheetNames) {
-            await fetchSheetNames();
-        }
-        sheetName = sheetNames[0].properties.title;
+    if (!sheetNames) {
+        await fetchSheetNames();
     }
-    await fetchSheetHeaders(sheetName);
+    if (sheetName === undefined || sheetNames.indexOf(sheetName) === -1) {
+        sheetName = sheetNames[0];
+        updateURLParameter('sheetName', sheetName);
+    }
+    await fetchSheetHeaders();
     let response;
     try {
         response = await gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: sheetId,
-            range: `${sheetName}!A2:${lastCol}`
+            range: `'${sheetName}'!A2:${lastCol}`
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
@@ -222,18 +233,44 @@ async function fetchRows() {
     }
     // add cards to .card-list using jquery
     $('.card-list').empty();
-    range.values.forEach((row, i) => {
-        let card = $('<li class="card"></li>');
+    rows = range.values;
+    rows.forEach((row, i) => {
+        let card = $(`<li class="card-container" id="card_${i}"></li>`);
+        let cardContent = $(`<div class="card"></div>`);
         row.forEach((cell, j) => {
-            card.append(
+            cardContent.append(
                 `<div class="form-floating mb-3">
                     <input type="text" readonly class="form-control-plaintext" id="card_${i}_${j}" value="${cell}">
                     <label for="card_${i}_${j}">${headers[j]}</label>
                 </div>`);
         });
+        card.append(cardContent);
         $('.card-list').append(card);
         // on click - call editRow
         card.click(async () => await editRow(i + 2));
+    });
+    $('#filter').val('');
+    $('.my-container').removeClass('edit');
+    $('.my-container').addClass('cards');
+}
+
+function filterCards() {
+    const filter = $('#filter').val().toLowerCase();
+    if (filter === '') {
+        rows.forEach((row, i) => {
+            $(`#card_${i}`).removeClass('filtered');
+        });
+        return;
+    }
+    rows.map((row, i) => {
+        return {
+            filter: row.join(' ').toLowerCase().includes(filter),
+            card: $(`#card_${i}`)
+        };
+    }).forEach(obj => {
+        // if filtered add class 'filtered' else remove class 'filtered'
+        if (obj.filter) obj.card.removeClass('filtered');
+        else obj.card.addClass('filtered');
     });
 }
 
@@ -245,7 +282,7 @@ async function editRow(rowNum) {
     try {
         response = await gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: sheetId,
-            range: `${sheetName}!A${rowNum}:${lastCol}${rowNum}`
+            range: `'${sheetName}'!A${rowNum}:${lastCol}${rowNum}`
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
@@ -256,24 +293,46 @@ async function editRow(rowNum) {
         document.getElementById('content').innerText = 'No values found.';
         return;
     }
+    editRowNum = rowNum;
     let row = range.values[0];
     // add cells to .card-edit using jquery
     $('.card-edit-list').empty();
     row.forEach((cell, j) => {
         $('.card-edit-list').append(
             `<div class="form-floating mb-3">
-                <input type="text" class="form-control" id="edit_${rowNum}_${j}" value="${cell}">
-                <label for="edit_${rowNum}_${j}">${headers[j]}</label>
+                <input type="text" class="form-control" id="edit_${j}" value="${cell}" placeholder="..." >
+                <label for="edit_${j}">${headers[j]}</label>
             </div>`);
     });
+    $('.my-container').removeClass('cards');
+    $('.my-container').addClass('edit');
 }
 
-function saveCard() {
-
+async function saveCard() {
+    let row = [];
+    headers.forEach((header, j) => {
+        row.push($(`#edit_${j}`).val());
+    });
+    let response;
+    try {
+        response = await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `'${sheetName}'!A${editRowNum}:${lastCol}${editRowNum}`,
+            valueInputOption: 'RAW',
+            resource: {
+                values: [row],
+            },
+        });
+    } catch (err) {
+        document.getElementById('content').innerText = err.message;
+        return;
+    }
+    document.getElementById('content').innerText = 'Updated row.';
+    await fetchRows();
 }
 
-function cancelEdit() {
-
+async function cancelEdit() {
+    await fetchRows();
 }
 
 /**
@@ -284,7 +343,7 @@ async function appendRow(sheetName, row) {
     try {
         response = await gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: sheetId,
-            range: `${sheetName}!A1`,
+            range: `'${sheetName}'!A1`,
             valueInputOption: 'RAW',
             resource: {
                 values: [row],

@@ -14,17 +14,23 @@
     <div class="my-container">
         <div class="header">
             <h1>Google Sheets Cards</h1>
-            <button id="authorize_button" class="btn btn-primary" type="button" onclick="handleAuthClick()">Authorize</button>
+            <div></div>
+            <button id="authorize_button" class="btn btn-primary" type="button" onclick="handleAuthClick()">
+                Log in
+            </button>
             <button id="signout_button" class="btn" type="button" onclick="handleSignoutClick()">Sign Out</button>
             <pre id="content" style="white-space: pre-wrap;"></pre>
         </div>
         <div class="sheet-selector">
-            <button type="button" class="btn btn-primary">&#9776;</button>
-            <ul class="sheet-list">
-            </ul>
+            <label for="sheets-hamburger" class="btn btn-primary">&#9776;</label>
+            <input type="checkbox" id="sheets-hamburger" checked></input>
+            <div class="sheet-list-container">
+                <ul class="sheet-list">
+                </ul>
+            </div>
         </div>
         <div class="cards">
-            <input type="text" class="form-control" id="search" placeholder="Search...">
+            <input type="text" class="form-control" id="filter" placeholder="Search..." oninput="filterCards()">
             <ol class="card-list">
             </ol>
         </div>
@@ -34,7 +40,7 @@
             <button type="button" class="btn btn-primary" onclick="saveCard()">Save</button>
             <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
         </div>
-        
+
 
     </div>
     <script src="https://code.jquery.com/jquery-3.7.1.slim.js"

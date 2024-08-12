@@ -1,0 +1,68 @@
+.my-container {
+    display: grid;
+    height: 100%;
+    max-height: 100vh;
+    grid-template-rows: 1fr 0fr 0fr 0fr;
+    grid-template-columns: 1fr;
+    transition: 250ms grid-template-rows ease;
+    &.cards {
+        grid-template-rows: auto auto 1fr 0fr;
+    }
+    &.edit {
+        grid-template-rows: auto 0fr 0fr 1fr;
+    }
+}
+
+.header {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+}
+
+.sheet-selector, .cards, .card-edit {
+    overflow: hidden;
+}
+
+#sheets-hamburger {
+    display: none;
+}
+
+#sheets-hamburger + .sheet-list-container {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: 250ms grid-template-rows ease;
+}
+
+#sheets-hamburger:checked + .sheet-list-container {
+    grid-template-rows: 1fr;
+}
+
+.sheet-list {
+    overflow: hidden;
+}
+
+.card-list, .card-edit {
+    height: 100%;
+    overflow-y: scroll;
+}
+
+.card {
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow: hidden;
+}
+
+.card-container {
+    padding: 2px;
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: 250ms grid-template-rows ease, 250ms padding ease;
+}
+
+.card-container.filtered {
+    grid-template-rows: 0fr;
+    padding: 0;
+    .card {
+        border-top-width: 0;
+        border-bottom-width: 0;
+    }
+}
