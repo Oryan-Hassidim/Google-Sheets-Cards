@@ -129,8 +129,8 @@ function handleSignoutClick() {
         document.getElementById('authorize_button').innerText = 'Authorize';
         document.getElementById('signout_button').style.visibility = 'hidden';
     }
-    $('.my-container').removeClass('cards');
-    $('.my-container').removeClass('edit');
+    $('.my-container').removeClass('cards-state');
+    $('.my-container').removeClass('edit-state');
 }
 
 /** 
@@ -140,6 +140,17 @@ function updateURLParameter(param, value) {
     const url = new URL(window.location);
     url.searchParams.set(param, value);
     window.history.pushState({}, '', url);
+}
+
+function selectSheet(name) {
+    sheetName = name;
+    updateURLParameter('sheetName', sheetName);
+    // add class 'active' to the selected sheet
+    $('.sheet-list li').removeClass('active');
+    $(`.sheet-list li:contains(${name})`).addClass('active');
+    // aria-current="true"
+    $('.sheet-list li').attr('aria-current', 'false');
+    $(`.sheet-list li:contains(${name})`).attr('aria-current', 'true');
 }
 
 /**
@@ -164,12 +175,14 @@ async function fetchSheetNames() {
     $('.sheet-list').empty();
     // add to the .sheet-list using jquery
     sheetNames.forEach(name => {
-        $('.sheet-list').append(`<li><a>${name}</a></li>`);
+        if (name === sheetName)
+            $('.sheet-list').append(`<li class="list-group-item list-group-item-action active" aria-current="true">${name}</li>`);
+        else
+            $('.sheet-list').append(`<li class="list-group-item list-group-item-action">${name}</li>`);
     });
     // add click event to each sheet
     $('.sheet-list li').click(async function () {
-        sheetName = this.innerText;
-        updateURLParameter('sheetName', sheetName);
+        selectSheet(this.innerText);
         await fetchRows();
     });
 }
@@ -212,8 +225,7 @@ async function fetchRows() {
         await fetchSheetNames();
     }
     if (sheetName === undefined || sheetNames.indexOf(sheetName) === -1) {
-        sheetName = sheetNames[0];
-        updateURLParameter('sheetName', sheetName);
+        selectSheet(sheetNames[0]);
     }
     await fetchSheetHeaders();
     let response;
@@ -239,9 +251,9 @@ async function fetchRows() {
         let cardContent = $(`<div class="card"></div>`);
         row.forEach((cell, j) => {
             cardContent.append(
-                `<div class="form-floating mb-3">
-                    <input type="text" readonly class="form-control-plaintext" id="card_${i}_${j}" value="${cell}">
-                    <label for="card_${i}_${j}">${headers[j]}</label>
+                `<div>
+                    <span>${headers[j]}</span><br>
+                    <span>${cell}</span>
                 </div>`);
         });
         card.append(cardContent);
@@ -250,8 +262,8 @@ async function fetchRows() {
         card.click(async () => await editRow(i + 2));
     });
     $('#filter').val('');
-    $('.my-container').removeClass('edit');
-    $('.my-container').addClass('cards');
+    $('.my-container').removeClass('edit-state');
+    $('.my-container').addClass('cards-state');
 }
 
 function filterCards() {
@@ -304,8 +316,8 @@ async function editRow(rowNum) {
                 <label for="edit_${j}">${headers[j]}</label>
             </div>`);
     });
-    $('.my-container').removeClass('cards');
-    $('.my-container').addClass('edit');
+    $('.my-container').removeClass('cards-state');
+    $('.my-container').addClass('edit-state');
 }
 
 async function saveCard() {

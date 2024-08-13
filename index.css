@@ -1,54 +1,137 @@
+:root {
+    --big-screen-width: 800px;
+}
+
 .my-container {
     display: grid;
     height: 100%;
     max-height: 100vh;
     grid-template-rows: 1fr 0fr 0fr 0fr;
     grid-template-columns: 1fr;
-    transition: 250ms grid-template-rows ease;
-    &.cards {
+    grid-template-areas:
+        "header"
+        "sheets"
+        "cards"
+        "edit";
+    row-gap: 10px;
+    transition: 250ms grid-template-rows ease, 250ms grid-template-columns ease;
+
+    &.cards-state {
         grid-template-rows: auto auto 1fr 0fr;
     }
-    &.edit {
+
+    &.edit-state {
         grid-template-rows: auto 0fr 0fr 1fr;
+    }
+
+    @media screen and (min-width: 800px) {
+        grid-template-rows: auto 0fr;
+        grid-template-columns: auto 3fr 0fr;
+        column-gap: 10px;
+        grid-template-areas:
+            "header header header"
+            "sheets cards edit";
+
+        &.cards-state {
+            grid-template-rows: auto 1fr;
+            grid-template-columns: auto 3fr 0fr;
+        }
+
+        &.edit-state {
+            grid-template-rows: auto 1fr;
+            grid-template-columns: auto 1fr 2fr;
+        }
     }
 }
 
 .header {
     display: grid;
     grid-template-columns: auto 1fr auto auto;
+    grid-area: header;
 }
 
-.sheet-selector, .cards, .card-edit {
+.sheet-selector,
+.cards,
+.card-edit {
     overflow: hidden;
+}
+
+.sheet-selector {
+    grid-area: sheets;
 }
 
 #sheets-hamburger {
     display: none;
 }
 
-#sheets-hamburger + .sheet-list-container {
+#sheets-hamburger+.sheet-list-container {
     display: grid;
     grid-template-rows: 0fr;
-    transition: 250ms grid-template-rows ease;
+    transition: 250ms grid-template-rows ease, 250ms grid-template-columns ease;
+
+    @media screen and (min-width: 800px) {
+        grid-template-rows: 1fr;
+        grid-template-columns: 0fr;
+    }
 }
 
-#sheets-hamburger:checked + .sheet-list-container {
+#sheets-hamburger:checked+.sheet-list-container {
     grid-template-rows: 1fr;
+
+    @media screen and (min-width: 800px) {
+        grid-template-columns: 1fr;
+    }
 }
 
 .sheet-list {
     overflow: hidden;
+
+    li {
+        /* hand on hover */
+        cursor: pointer;
+    }
 }
 
-.card-list, .card-edit {
+.card-list {
+    overflow-y: auto;
+    margin-top: 5px;
+    margin-bottom: 0;
+    padding: 0;
+}
+
+.card-edit {
     height: 100%;
     overflow-y: scroll;
+}
+
+.cards {
+    grid-area: cards;
+    display: grid;
+    grid-template-rows: auto 1fr;
+}
+
+.card-edit {
+    grid-area: edit;
 }
 
 .card {
     flex-direction: row;
     flex-wrap: wrap;
+    column-gap: 10px;
+    row-gap: 5px;
     overflow: hidden;
+
+    >div {
+        flex-basis: context;
+        flex-grow: 1;
+        line-height: 120%;
+
+        span:first-child {
+            color: rgba(0, 0, 0, 0.7);
+            font-size: smaller;
+            width: auto;
+        }
+    }
 }
 
 .card-container {
@@ -61,6 +144,7 @@
 .card-container.filtered {
     grid-template-rows: 0fr;
     padding: 0;
+
     .card {
         border-top-width: 0;
         border-bottom-width: 0;
