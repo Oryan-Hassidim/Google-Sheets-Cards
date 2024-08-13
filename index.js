@@ -126,7 +126,7 @@ function handleSignoutClick() {
         google.accounts.oauth2.revoke(token.access_token);
         gapi.client.setToken('');
         document.getElementById('content').innerText = '';
-        document.getElementById('authorize_button').innerText = 'Authorize';
+        document.getElementById('authorize_button').innerText = 'Log in';
         document.getElementById('signout_button').style.visibility = 'hidden';
     }
     $('.my-container').removeClass('cards-state');
