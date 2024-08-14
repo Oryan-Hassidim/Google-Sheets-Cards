@@ -101,6 +101,9 @@ function handleAuthClick() {
         await fetchRows();
     };
 
+    if (localStorage.getItem('access_token') && gapi.client.getToken() === null) {
+        gapi.client.setToken({ access_token: localStorage.getItem('access_token') });
+    }
     if (localStorage.getItem('access_token') && gapi.client.getToken() !== null) {
         tokenClient.requestAccessToken({ prompt: '' });
     } else {
@@ -193,21 +196,41 @@ async function fetchSheetNames() {
  */
 async function fetchSheetHeaders() {
     let response;
+    // now check width of the columns
     try {
-        response = await gapi.client.sheets.spreadsheets.values.get({
+        response = await gapi.client.sheets.spreadsheets.get({
             spreadsheetId: sheetId,
-            range: `'${sheetName}'!1:1`,
+            ranges: `'${sheetName}'!1:1`,
+            includeGridData: true,
+            fields: 'sheets.data.rowData.values.formattedValue,sheets.data.columnMetadata.hiddenByUser'
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
         return;
     }
-    const range = response.result;
-    if (!range || !range.values || range.values.length == 0) {
-        document.getElementById('content').innerText = 'No values found.';
-        return;
-    }
-    headers = range.values[0];
+    headers = response.result.sheets[0].data[0].rowData[0].values.map(cell => cell.formattedValue);
+    headers = headers.map((header, i) => {
+        return {
+            name: header,
+            hidden: response.result.sheets[0].data[0].columnMetadata[i].hiddenByUser === true
+        };
+    });
+
+    // try {
+    //     response = await gapi.client.sheets.spreadsheets.values.get({
+    //         spreadsheetId: sheetId,
+    //         range: `'${sheetName}'!1:1`,
+    //     });
+    // } catch (err) {
+    //     document.getElementById('content').innerText = err.message;
+    //     return;
+    // }
+    // const range = response.result;
+    // if (!range || !range.values || range.values.length == 0) {
+    //     document.getElementById('content').innerText = 'No values found.';
+    //     return;
+    // }
+    // headersNames = range.values[0];
     // set lastCol to the last column index letter (A, B, C, ...)
     lastCol = String.fromCharCode(65 + headers.length - 1);
 }
@@ -243,24 +266,56 @@ async function fetchRows() {
         document.getElementById('content').innerText = 'No values found.';
         return;
     }
+    // check the number of rows before empty row
+    let rowsNumber = 0;
+    while (rowsNumber < range.values.length && range.values[rowsNumber].length > 0) {
+        rowsNumber++;
+    }
+    // now get the colors of the first column
+    try {
+        response = await gapi.client.sheets.spreadsheets.get({
+            spreadsheetId: sheetId,
+            ranges: `'${sheetName}'!A2:A${rowsNumber + 1}`,
+            fields: 'sheets.data.rowData.values.effectiveFormat.backgroundColor'
+        });
+    } catch (err) {
+        document.getElementById('content').innerText = err.message;
+        return;
+    }
+    const colors = response.result.sheets[0].data[0].rowData
+        .map(row => row.values[0].effectiveFormat.backgroundColor)
+        .map(color => {
+            return {
+                r: color.red === undefined ? 0 : color.red * 255,
+                g: color.green === undefined ? 0 : color.green * 255,
+                b: color.blue === undefined ? 0 : color.blue * 255
+            };
+        });
+
     // add cards to .card-list using jquery
     $('.card-list').empty();
     rows = range.values;
-    rows.forEach((row, i) => {
-        let card = $(`<li class="card-container" id="card_${i}"></li>`);
-        let cardContent = $(`<div class="card"></div>`);
-        row.forEach((cell, j) => {
-            cardContent.append(
+    for (let i = 0; i < rowsNumber; i++) {
+        if (rows[i].length === 0) {
+            break;
+        }
+        let cardContainer = $(`<li class="card-container" id="card_${i}"></li>`);
+        let card = $(`<div class="card" style="background-color: rgb(${colors[i].r}, ${colors[i].g}, ${colors[i].b})">
+                      </div>`);
+        headers.forEach((header, j) => {
+            if (header.hidden) return;
+            card.append(
                 `<div>
-                    <span>${headers[j]}</span><br>
-                    <span>${cell}</span>
+                    <span>${header.name}</span><br>
+                    <span>${rows[i].length > j ? rows[i][j] : ''}</span>
                 </div>`);
         });
-        card.append(cardContent);
-        $('.card-list').append(card);
-        // on click - call editRow
-        card.click(async () => await editRow(i + 2));
-    });
+        card.append(`<span class="card-index">${i + 2}</span>`);
+        cardContainer.append(card);
+        $('.card-list').append(cardContainer);
+        cardContainer.click(async () => await editRow(i + 2));
+    }
+
     $('#filter').val('');
     $('.my-container').removeClass('edit-state');
     $('.my-container').addClass('cards-state');
@@ -309,11 +364,12 @@ async function editRow(rowNum) {
     let row = range.values[0];
     // add cells to .card-edit using jquery
     $('.card-edit-list').empty();
-    row.forEach((cell, j) => {
+    headers.forEach((header, j) => {
         $('.card-edit-list').append(
-            `<div class="form-floating mb-3">
-                <input type="text" class="form-control" id="edit_${j}" value="${cell}" placeholder="..." >
-                <label for="edit_${j}">${headers[j]}</label>
+            `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
+                <input type="text" class="form-control" id="edit_${j}" 
+                       value="${row.length > j ? row[j] : ''}" placeholder="..." >
+                <label for="edit_${j}">${header.name}</label>
             </div>`);
     });
     $('.my-container').removeClass('cards-state');
@@ -325,16 +381,31 @@ async function saveCard() {
     headers.forEach((header, j) => {
         row.push($(`#edit_${j}`).val());
     });
+    row = row
+        .map(cell => cell.trim());
+
     let response;
     try {
-        response = await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId: sheetId,
-            range: `'${sheetName}'!A${editRowNum}:${lastCol}${editRowNum}`,
-            valueInputOption: 'RAW',
-            resource: {
-                values: [row],
-            },
-        });
+        if (editRowNum === -1) {
+            response = await gapi.client.sheets.spreadsheets.values.append({
+                spreadsheetId: sheetId,
+                range: `'${sheetName}'!A1`,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [row],
+                },
+            });
+
+        } else {
+            response = await gapi.client.sheets.spreadsheets.values.update({
+                spreadsheetId: sheetId,
+                range: `'${sheetName}'!A${editRowNum}:${lastCol}${editRowNum}`,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [row],
+                },
+            });
+        }
     } catch (err) {
         document.getElementById('content').innerText = err.message;
         return;
@@ -347,23 +418,19 @@ async function cancelEdit() {
     await fetchRows();
 }
 
-/**
- * appends row to specific sheet
- */
-async function appendRow(sheetName, row) {
-    let response;
-    try {
-        response = await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: `'${sheetName}'!A1`,
-            valueInputOption: 'RAW',
-            resource: {
-                values: [row],
-            },
-        });
-    } catch (err) {
-        document.getElementById('content').innerText = err.message;
-        return;
-    }
-    document.getElementById('content').innerText = 'Appended row.';
+async function addNew() {
+    editRowNum = -1;
+    let row = [];
+    // add cells to .card-edit using jquery
+    $('.card-edit-list').empty();
+    headers.forEach((header, j) => {
+        $('.card-edit-list').append(
+            `<div class="form-floating mb-3">
+                <input type="text" class="form-control" id="edit_${j}" 
+                       value="${row.length > j ? row[j] : ''}" placeholder="..." >
+                <label for="edit_${j}">${header.name}</label>
+            </div>`);
+    });
+    $('.my-container').removeClass('cards-state');
+    $('.my-container').addClass('edit-state');
 }
