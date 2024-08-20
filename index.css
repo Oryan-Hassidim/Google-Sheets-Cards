@@ -6,39 +6,42 @@
     display: grid;
     height: 100%;
     max-height: 100vh;
-    grid-template-rows: 1fr 0fr 0fr 0fr;
+    grid-template-rows: 1fr 0fr 0fr 0fr auto auto;
     grid-template-columns: 1fr;
     grid-template-areas:
         "header"
         "sheets"
         "cards"
-        "edit";
-    row-gap: 10px;
+        "edit"
+        "status"
+        "footer";
     transition: 250ms grid-template-rows ease, 250ms grid-template-columns ease;
 
     &.cards-state {
-        grid-template-rows: auto auto 1fr 0fr;
+        grid-template-rows: auto auto 1fr 0fr auto auto;
     }
 
     &.edit-state {
-        grid-template-rows: auto 0fr 0fr 1fr;
+        grid-template-rows: auto 0fr 0fr 1fr 0fr auto;
     }
 
     @media screen and (min-width: 800px) {
-        grid-template-rows: auto 0fr;
+        grid-template-rows: auto 0fr auto auto;
         grid-template-columns: auto 3fr 0fr;
         column-gap: 10px;
         grid-template-areas:
             "header header header"
-            "sheets cards edit";
+            "sheets cards edit"
+            "status status status"
+            "footer footer footer";
 
         &.cards-state {
-            grid-template-rows: auto 1fr;
+            grid-template-rows: auto 1fr auto auto;
             grid-template-columns: auto 3fr 0fr;
         }
 
         &.edit-state {
-            grid-template-rows: auto 1fr;
+            grid-template-rows: auto 1fr 0fr auto;
             grid-template-columns: auto 1fr 2fr;
         }
     }
@@ -58,39 +61,71 @@
 
 .sheet-selector {
     grid-area: sheets;
-}
-
-#sheets-hamburger {
-    display: none;
-}
-
-#sheets-hamburger+.sheet-list-container {
     display: grid;
-    grid-template-rows: 0fr;
-    transition: 250ms grid-template-rows ease, 250ms grid-template-columns ease;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+        "hamburger file-name"
+        "list list";
 
     @media screen and (min-width: 800px) {
+        grid-template-areas:
+            "hamburger list"
+            "file-name list";
+
+        .file-name {
+            writing-mode: vertical-rl;
+        }
+    }
+
+    #sheets-hamburger {
+        display: none;
+    }
+
+    .sheets-hamburger-label {
+        grid-area: hamburger;
+        justify-self: center;
+        align-self: center;
+    }
+
+    .file-name {
+        grid-area: file-name;
+
+        #file-name {
+            margin: 0;
+        }
+    }
+
+    #sheets-hamburger+.sheet-list-container {
+        grid-area: list;
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: 250ms grid-template-rows ease, 250ms grid-template-columns ease;
+
+        @media screen and (min-width: 800px) {
+            grid-template-rows: 1fr;
+            grid-template-columns: 0fr;
+        }
+    }
+
+    #sheets-hamburger:checked+.sheet-list-container {
         grid-template-rows: 1fr;
-        grid-template-columns: 0fr;
+
+        @media screen and (min-width: 800px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .sheet-list {
+        overflow: hidden;
+
+        li {
+            cursor: pointer;
+            white-space: nowrap;
+        }
     }
 }
 
-#sheets-hamburger:checked+.sheet-list-container {
-    grid-template-rows: 1fr;
-
-    @media screen and (min-width: 800px) {
-        grid-template-columns: 1fr;
-    }
-}
-
-.sheet-list {
-    overflow: hidden;
-
-    li {
-        /* hand on hover */
-        cursor: pointer;
-    }
-}
 
 .card-list {
     overflow-y: auto;
@@ -163,4 +198,36 @@
 
 .card-edit-list .hidden {
     display: none;
+}
+
+.status {
+    grid-area: status;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow: hidden;
+    justify-content: start;
+    align-items: center;
+    gap: 5px;
+    >* {
+        margin: 0;
+    }
+}
+
+footer {
+    grid-area: footer;
+    background-color: rgb(245, 245, 245);
+    text-align: center;
+    color: rgb(140, 140, 140);
+    font-size: smaller;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    column-gap: 3px;
+
+    a {
+        color: rgb(140, 140, 140);
+    }
 }

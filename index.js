@@ -164,12 +164,14 @@ async function fetchSheetNames() {
     try {
         response = await gapi.client.sheets.spreadsheets.get({
             spreadsheetId: sheetId,
+            fields: 'properties.title,sheets.properties.title'
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
         return;
     }
     sheetNames = response.result.sheets.map(sheet => sheet.properties.title);
+    $('#file-name').text(response.result.properties.title);
     if (!sheetNames || sheetNames.length == 0) {
         document.getElementById('content').innerText = 'No sheets found.';
         return;
@@ -201,7 +203,7 @@ async function fetchSheetHeaders() {
         response = await gapi.client.sheets.spreadsheets.get({
             spreadsheetId: sheetId,
             ranges: `'${sheetName}'!1:1`,
-            includeGridData: true,
+            // includeGridData: true,
             fields: 'sheets.data.rowData.values.formattedValue,sheets.data.columnMetadata.hiddenByUser'
         });
     } catch (err) {
@@ -316,6 +318,14 @@ async function fetchRows() {
         cardContainer.click(async () => await editRow(i + 2));
     }
 
+    if (rowsNumber < range.values.length) {
+        const status = $('#status');
+        status.empty();
+        status.text(range.values[range.values.length - 1]
+            .filter((cell, j) => !headers[j].hidden && cell !== undefined && cell !== "")
+            .join(', '));
+    }
+
     $('#filter').val('');
     $('.my-container').removeClass('edit-state');
     $('.my-container').addClass('cards-state');
@@ -410,7 +420,6 @@ async function saveCard() {
         document.getElementById('content').innerText = err.message;
         return;
     }
-    document.getElementById('content').innerText = 'Updated row.';
     await fetchRows();
 }
 

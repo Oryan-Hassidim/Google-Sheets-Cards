@@ -12,17 +12,19 @@
 
 <body>
     <div class="my-container">
-        <div class="header">
+        <header class="header">
             <h1>Google Sheets Cards</h1>
             <div></div>
             <button id="authorize_button" class="btn btn-primary" type="button" onclick="handleAuthClick()">
                 Log in
             </button>
             <button id="signout_button" class="btn" type="button" onclick="handleSignoutClick()">Sign Out</button>
-            <pre id="content" style="white-space: pre-wrap;"></pre>
-        </div>
+        </header>
         <div class="sheet-selector">
-            <label for="sheets-hamburger" class="btn btn-primary">&#9776;</label>
+            <label for="sheets-hamburger" class="btn btn-primary sheets-hamburger-label">&#9776;</label>
+            <div class="file-name">
+                <h2 id="file-name"></h2>
+            </div>
             <input type="checkbox" id="sheets-hamburger" checked></input>
             <div class="sheet-list-container">
                 <ul class="sheet-list list-group">
@@ -41,8 +43,17 @@
             <button type="button" class="btn btn-primary" onclick="saveCard()">Save</button>
             <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
         </div>
-
-
+        <div class="status">
+            <p id="status"></p>
+            <pre id="content" style="white-space: pre-wrap;"></pre>
+        </div>
+        <footer class="footer">
+            <a href="https://github.com/Oryan-Hassidim/Google-Sheets-Cards">Project on GitHub</a>
+            •
+            <a href="Terms-Of-Service/">Terms of Service</a>
+            •
+            <a href="Privacy-Policy/">Privacy Policy</a>
+        </footer>
     </div>
     <script src="https://code.jquery.com/jquery-3.7.1.slim.js"
         integrity="sha256-UgvvN8vBkgO0luPSUl2s8TIlOSYRoGFAX4jlCIm9Adc=" crossorigin="anonymous"></script>
