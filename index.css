@@ -75,6 +75,8 @@
 
         .file-name {
             writing-mode: vertical-rl;
+            align-self: start;
+            transform: rotate(180deg);
         }
     }
 
