@@ -358,36 +358,82 @@ function filterCards() {
     });
 }
 
+function googleSheetsDateValueToDate(dateValue) {
+    return new Date((dateValue - (25567 + 2)) * 86400 * 1000);
+}
+
+function strToInputValue(str) {
+    // for example replace all " with &quot;
+    return str.replace(/"/g, '&quot;');
+}
+
 /**
  * open specific row for editing in .card-edit
  */
 async function editRow(rowNum) {
     let response;
     try {
-        response = await gapi.client.sheets.spreadsheets.values.get({
+        // response = await gapi.client.sheets.spreadsheets.values.get({
+        //     spreadsheetId: sheetId,
+        //     range: `'${sheetName}'!A${rowNum}:${lastCol}${rowNum}`
+        // });
+        response = await gapi.client.sheets.spreadsheets.get({
             spreadsheetId: sheetId,
-            range: `'${sheetName}'!A${rowNum}:${lastCol}${rowNum}`
+            ranges: `'${sheetName}'!A${rowNum}:${lastCol}${rowNum}`,
+            fields: 'sheets.data.rowData.values.userEnteredValue,sheets.data.rowData.values.effectiveFormat.numberFormat'
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
         return;
     }
-    const range = response.result;
-    if (!range || !range.values || range.values.length == 0) {
+    const range = response.result.sheets[0].data[0].rowData;
+    if (!range || !range[0].values || range[0].values.length == 0) {
         document.getElementById('content').innerText = 'No values found.';
         return;
     }
     editRowNum = rowNum;
-    let row = range.values[0];
+    let row = range[0].values;
     // add cells to .card-edit using jquery
     $('.card-edit-list').empty();
     headers.forEach((header, j) => {
-        $('.card-edit-list').append(
-            `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
+        // there are 4 options: number, date, text, formula
+        const cell = row[j];
+        if (cell.userEnteredValue.formulaValue !== undefined) {
+            // formula
+            $('.card-edit-list').append(
+                `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
+                    <input type="text" class="form-control" id="edit_${j}" 
+                           value="${row.length > j ? strToInputValue(cell.userEnteredValue.formulaValue) : ''}" placeholder="..." >
+                    <label for="edit_${j}">${header.name}</label>
+                </div>`);
+        } else if (cell.effectiveFormat?.numberFormat?.type === 'DATE') {
+            // date
+            const date = googleSheetsDateValueToDate(cell.userEnteredValue.numberValue);
+            const dateValue = date.toISOString().split('T')[0];
+            $('.card-edit-list').append(
+                `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
+                    <input type="date" class="form-control" id="edit_${j}" 
+                           value="${row.length > j ? dateValue : ''}" placeholder="..." >
+                    <label for="edit_${j}">${header.name}</label>
+                </div>`);
+            // TODO: work on date option and formats, edit and save them
+        } else if (cell.userEnteredValue.numberValue !== undefined) {
+            // number
+            $('.card-edit-list').append(
+                `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
+                    <input type="number" class="form-control" id="edit_${j}" 
+                           value="${row.length > j ? cell.userEnteredValue.numberValue : ''}" placeholder="..." >
+                    <label for="edit_${j}">${header.name}</label>
+                </div>`);
+        } else {
+            // text
+            $('.card-edit-list').append(
+                `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
                 <input type="text" class="form-control" id="edit_${j}" 
-                       value="${row.length > j ? row[j] : ''}" placeholder="..." >
+                       value="${row.length > j ? strToInputValue(cell.userEnteredValue.stringValue) : ''}" placeholder="..." >
                 <label for="edit_${j}">${header.name}</label>
             </div>`);
+        }
     });
     $('.my-container').removeClass('cards-state');
     $('.my-container').addClass('edit-state');
