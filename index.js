@@ -451,7 +451,11 @@ async function editRow(rowNum) {
 async function saveCard() {
     let row = [];
     headers.forEach((header, j) => {
-        row.push($(`#edit_${j}`).val());
+        // if date then convert to google sheets date value
+        if ($(`#edit_${j}`).attr('type') === 'date') {
+            const date = new Date($(`#edit_${j}`).val());
+            row.push((date.getTime() / (86400 * 1000) + 25567 + 2).toFixed(0));
+        } else row.push($(`#edit_${j}`).val());
     });
     row = row
         .map(cell => cell.trim());
