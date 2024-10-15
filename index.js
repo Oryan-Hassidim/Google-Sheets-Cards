@@ -277,8 +277,8 @@ async function fetchRows() {
     try {
         response = await gapi.client.sheets.spreadsheets.get({
             spreadsheetId: sheetId,
-            ranges: `'${sheetName}'!A2:A${rowsNumber + 1}`,
-            fields: 'sheets.data.rowData.values.effectiveFormat.backgroundColor'
+            ranges: `'${sheetName}'!A2:${lastCol}${rowsNumber + 1}`,
+            fields: 'sheets.data.rowData.values.effectiveFormat.backgroundColor,sheets.data.rowData.values.hyperlink,sheets.data.rowData.values.formattedValue'
         });
     } catch (err) {
         document.getElementById('content').innerText = err.message;
@@ -309,13 +309,20 @@ async function fetchRows() {
             card.append(
                 `<div>
                     <span>${header.name}</span><br>
-                    <span>${rows[i].length > j ? rows[i][j] : ''}</span>
+                    <span>${rows[i].length > j
+                    ? (response.result.sheets[0].data[0].rowData[i].values[j].hyperlink !== undefined
+                        ? `<a href="${response.result.sheets[0].data[0].rowData[i].values[j].hyperlink}" target="_blank">${rows[i][j]}</a>`
+                        : rows[i][j])
+                    : ''}</span>
                 </div>`);
         });
         card.append(`<span class="card-index">${i + 2}</span>`);
         cardContainer.append(card);
         $('.card-list').append(cardContainer);
-        cardContainer.click(async () => await editRow(i + 2));
+        cardContainer.click(async (e) => {
+            if (e.target.tagName === 'A') return;
+            await editRow(i + 2);
+        });
     }
 
     if (rowsNumber < range.values.length) {
