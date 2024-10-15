@@ -397,13 +397,22 @@ async function editRow(rowNum) {
     $('.card-edit-list').empty();
     headers.forEach((header, j) => {
         // there are 4 options: number, date, text, formula
+        if (row.length <= j || row[j].userEnteredValue === undefined) {
+            $('.card-edit-list').append(
+                `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
+                <input type="text" class="form-control" id="edit_${j}" 
+                       value="" placeholder="..." >
+                <label for="edit_${j}">${header.name}</label>
+            </div>`);
+            return;
+        }
         const cell = row[j];
         if (cell.userEnteredValue.formulaValue !== undefined) {
             // formula
             $('.card-edit-list').append(
                 `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
                     <input type="text" class="form-control" id="edit_${j}" 
-                           value="${row.length > j ? strToInputValue(cell.userEnteredValue.formulaValue) : ''}" placeholder="..." >
+                           value="${strToInputValue(cell.userEnteredValue.formulaValue)}" placeholder="..." >
                     <label for="edit_${j}">${header.name}</label>
                 </div>`);
         } else if (cell.effectiveFormat?.numberFormat?.type === 'DATE') {
@@ -413,7 +422,7 @@ async function editRow(rowNum) {
             $('.card-edit-list').append(
                 `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
                     <input type="date" class="form-control" id="edit_${j}" 
-                           value="${row.length > j ? dateValue : ''}" placeholder="..." >
+                           value="${dateValue}" placeholder="..." >
                     <label for="edit_${j}">${header.name}</label>
                 </div>`);
             // TODO: work on date option and formats, edit and save them
@@ -422,7 +431,7 @@ async function editRow(rowNum) {
             $('.card-edit-list').append(
                 `<div class="form-floating mb-3 ${header.hidden ? 'hidden' : ''}">
                     <input type="number" class="form-control" id="edit_${j}" 
-                           value="${row.length > j ? cell.userEnteredValue.numberValue : ''}" placeholder="..." >
+                           value="${cell.userEnteredValue.numberValue}" placeholder="..." >
                     <label for="edit_${j}">${header.name}</label>
                 </div>`);
         } else {
